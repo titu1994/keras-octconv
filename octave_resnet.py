@@ -251,7 +251,7 @@ def OctaveResNet(block,
             if i == 0 and j == 0:
                 first_block = True
                 strides = (1, 1)
-                downsample_shortcut = False
+                downsample_shortcut = True
 
             else:
                 first_block = False
@@ -375,6 +375,8 @@ def OctaveResNet152(include_top=True,
 
 
 if __name__ == '__main__':
-    model = OctaveResNet50(input_shape=(32, 32, 3), classes=10,
-                           alpha=0.5, initial_filters=16, initial_strides=False)
+    model = OctaveResNet50(input_shape=(256, 256, 3), classes=1000,
+                           alpha=0.5, expansion=4,
+                           initial_filters=64,
+                           initial_strides=True)
     model.summary()
