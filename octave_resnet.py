@@ -193,21 +193,6 @@ def OctaveResNet(layers,
                  **kwargs):
     """ Instantiates a Octave ResNet architecture.
 
-    Args:
-        layers:
-        include_top:
-        weights:
-        input_tensor:
-        input_shape:
-        pooling:
-        classes:
-        alpha:
-        expansion:
-        initial_filters:
-        initial_strides:
-        **kwargs:
-
-
     # Arguments
         layers: list of integers defining the depth of the network and
             the number of octave conv blocks per level of the
