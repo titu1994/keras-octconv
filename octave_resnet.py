@@ -179,8 +179,7 @@ def _bottleneck_original(ip, filters, strides=(1, 1), downsample_shortcut=False,
     return x
 
 
-def OctaveResNet(block,
-                 layers,
+def OctaveResNet(layers,
                  include_top=True,
                  weights=None,
                  input_tensor=None,
@@ -192,6 +191,79 @@ def OctaveResNet(block,
                  initial_filters=64,
                  initial_strides=False,
                  **kwargs):
+    """ Instantiates a Octave ResNet architecture.
+
+    Args:
+        layers:
+        include_top:
+        weights:
+        input_tensor:
+        input_shape:
+        pooling:
+        classes:
+        alpha:
+        expansion:
+        initial_filters:
+        initial_strides:
+        **kwargs:
+
+
+    # Arguments
+        layers: list of integers defining the depth of the network and
+            the number of octave conv blocks per level of the
+            network.
+        include_top: whether to include the fully-connected
+            layer at the top of the network.
+        weights: one of `None` (random initialization),
+              'imagenet' (pre-training on ImageNet),
+              or the path to the weights file to be loaded.
+        input_tensor: optional Keras tensor
+            (i.e. output of `layers.Input()`)
+            to use as image input for the model.
+        input_shape: optional shape tuple, only to be specified
+            if `include_top` is False (otherwise the input shape
+            has to be `(224, 224, 3)` (with `'channels_last'` data format)
+            or `(3, 224, 224)` (with `'channels_first'` data format).
+            It should have exactly 3 inputs channels,
+            and width and height should be no smaller than 32.
+            E.g. `(200, 200, 3)` would be one valid value.
+        pooling: optional pooling mode for feature extraction
+            when `include_top` is `False`.
+            - `None` means that the output of the model will be
+                the 4D tensor output of the
+                last convolutional layer.
+            - `avg` means that global average pooling
+                will be applied to the output of the
+                last convolutional layer, and thus
+                the output of the model will be a 2D tensor.
+            - `max` means that global max pooling will
+                be applied.
+        classes: optional number of classes to classify images
+            into, only to be specified if `include_top` is True, and
+            if no `weights` argument is specified.
+        alpha: float between [0, 1]. Defines the ratio of filters
+            allocated to the high frequency and low frequency
+            branches of the octave conv.
+        expansion: int/float. Multiplicative factor to increase the
+            number of filters in each octave block.
+        initial_filters: number of filters in the first convolution
+            layer. Determines how many parameters the network will
+            have.
+        initial_strides: bool to determine whether to apply a strided
+            convolution and max pooling before any octave conv
+            block. Set to True for ImageNet models and False for
+            CIFAR models.
+
+    # Returns
+        A Keras model instance.
+
+    # Raises
+        ValueError: in case of invalid argument for `weights`,
+            or invalid input shape.
+`       ValueError: If `alpha` is < 0 or > 1.
+        ValueError: If `layers` is not a list or a tuple
+            of integers.
+    """
 
     if not (weights in {'imagenet', None} or os.path.exists(weights)):
         raise ValueError('The `weights` argument should be either '
@@ -203,9 +275,16 @@ def OctaveResNet(block,
         raise ValueError('If using `weights` as `"imagenet"` with `include_top`'
                          ' as true, `classes` should be 1000')
 
-    assert alpha >= 0. and alpha <= 1., "`alpha` must be between 0 and 1"
+    if alpha < 0. or alpha > 1.:
+        raise ValueError('`alpha` must be between 0 and 1. Current alpha = '
+                         '%f' % alpha)
 
-    assert type(layers) in [list, tuple], "`layers` must be a list/tuple of integers"
+    if type(layers) not in [list, tuple]:
+        raise ValueError('`layers` must be a list/tuple of integers. '
+                         'Current layers = ', layers)
+
+    # Force convert all layer values to integers
+    layers = [int(x) for x in layers]
 
     # Determine proper input shape
     input_shape = _obtain_input_shape(input_shape,
@@ -256,7 +335,8 @@ def OctaveResNet(block,
             else:
                 first_block = False
 
-            x = block(x, num_filters, alpha, strides, downsample_shortcut, first_block, expansion)
+            x = _octresnet_bottleneck_block(x, num_filters, alpha, strides, downsample_shortcut,
+                                            first_block, expansion)
 
         # double number of filters per block
         num_filters *= 2
@@ -305,8 +385,7 @@ def OctaveResNet50(include_top=True,
                    initial_strides=True,
                    **kwargs):
 
-    return OctaveResNet(_octresnet_bottleneck_block,
-                        [3, 4, 6, 3],
+    return OctaveResNet([3, 4, 6, 3],
                         include_top,
                         weights,
                         input_tensor,
@@ -332,8 +411,7 @@ def OctaveResNet101(include_top=True,
                     initial_strides=True,
                     **kwargs):
 
-    return OctaveResNet(_octresnet_bottleneck_block,
-                        [3, 4, 23, 3],
+    return OctaveResNet([3, 4, 23, 3],
                         include_top,
                         weights,
                         input_tensor,
@@ -359,8 +437,7 @@ def OctaveResNet152(include_top=True,
                     initial_strides=True,
                     **kwargs):
 
-    return OctaveResNet(_octresnet_bottleneck_block,
-                        [3, 8, 36, 3],
+    return OctaveResNet([3, 8, 36, 3],
                         include_top,
                         weights,
                         input_tensor,
