@@ -15,7 +15,7 @@ from keras.utils import get_source_inputs
 from keras import backend as K
 from keras_applications.imagenet_utils import _obtain_input_shape
 
-from octave_conv import initial_octconv, final_octconv, octconv_block
+from octave_conv_block import initial_oct_conv_bn_relu, final_oct_conv_bn_relu, oct_conv_bn_relu
 
 
 def _conv_block(ip, filters, kernel_size=(3, 3), strides=(1, 1),
@@ -39,89 +39,33 @@ def _conv_bn_relu(ip, filters, kernel_size=(3, 3), strides=(1, 1),
     return x
 
 
-def _initial_oct_conv_bn_relu(ip, filters, kernel_size=(3, 3), strides=(1, 1),
-                              alpha=0.5, padding='same', dilation=None, bias=False,
-                              activation=True):
-
-    channel_axis = 1 if K.image_data_format() == 'channels_first' else -1
-
-    x_high, x_low = initial_octconv(ip, filters, kernel_size, strides, alpha,
-                                    padding, dilation, bias)
-
-    relu = ReLU()
-    x_high = BatchNormalization(axis=channel_axis)(x_high)
-    if activation:
-        x_high = relu(x_high)
-
-    x_low = BatchNormalization(axis=channel_axis)(x_low)
-    if activation:
-        x_low = relu(x_low)
-
-    return x_high, x_low
-
-
-def _final_oct_conv_bn_relu(ip_high, ip_low, filters, kernel_size=(3, 3), strides=(1, 1),
-                            padding='same', dilation=None, bias=False, activation=True):
-
-    channel_axis = 1 if K.image_data_format() == 'channels_first' else -1
-
-    x = final_octconv(ip_high, ip_low, filters, kernel_size, strides,
-                      padding, dilation, bias)
-
-    x = BatchNormalization(axis=channel_axis)(x)
-    if activation:
-        x = ReLU()(x)
-
-    return x
-
-
-def _oct_conv_bn_relu(ip_high, ip_low, filters, kernel_size=(3, 3), strides=(1, 1),
-                      alpha=0.5, padding='same', dilation=None, bias=False, activation=True):
-
-    channel_axis = 1 if K.image_data_format() == 'channels_first' else -1
-
-    x_high, x_low = octconv_block(ip_high, ip_low, filters, kernel_size, strides, alpha,
-                                  padding, dilation, bias)
-
-    relu = ReLU()
-    x_high = BatchNormalization(axis=channel_axis)(x_high)
-    if activation:
-        x_high = relu(x_high)
-
-    x_low = BatchNormalization(axis=channel_axis)(x_low)
-    if activation:
-        x_low = relu(x_low)
-
-    return x_high, x_low
-
-
 def _octresnet_bottleneck_block(ip, filters, alpha=0.5, strides=(1, 1),
                                 downsample_shortcut=False, first_block=False,
                                 expansion=4):
 
     if first_block:
-        x_high_res, x_low_res = _initial_oct_conv_bn_relu(ip, filters, kernel_size=(1, 1),
-                                                          alpha=alpha)
+        x_high_res, x_low_res = initial_oct_conv_bn_relu(ip, filters, kernel_size=(1, 1),
+                                                         alpha=alpha)
 
-        x_high, x_low = _oct_conv_bn_relu(x_high_res, x_low_res, filters, kernel_size=(3, 3),
-                                          strides=strides, alpha=alpha)
+        x_high, x_low = oct_conv_bn_relu(x_high_res, x_low_res, filters, kernel_size=(3, 3),
+                                         strides=strides, alpha=alpha)
 
     else:
         x_high_res, x_low_res = ip
-        x_high, x_low = _oct_conv_bn_relu(x_high_res, x_low_res, filters, kernel_size=(1, 1),
-                                          alpha=alpha)
+        x_high, x_low = oct_conv_bn_relu(x_high_res, x_low_res, filters, kernel_size=(1, 1),
+                                         alpha=alpha)
 
-        x_high, x_low = _oct_conv_bn_relu(x_high, x_low, filters, kernel_size=(3, 3),
-                                          strides=strides, alpha=alpha)
+        x_high, x_low = oct_conv_bn_relu(x_high, x_low, filters, kernel_size=(3, 3),
+                                         strides=strides, alpha=alpha)
 
     final_out_filters = int(filters * expansion)
-    x_high, x_low = _oct_conv_bn_relu(x_high, x_low, filters=final_out_filters,
-                                      kernel_size=(1, 1), alpha=alpha, activation=False)
+    x_high, x_low = oct_conv_bn_relu(x_high, x_low, filters=final_out_filters,
+                                     kernel_size=(1, 1), alpha=alpha, activation=False)
 
     if downsample_shortcut:
-        x_high_res, x_low_res = _oct_conv_bn_relu(x_high_res, x_low_res,
-                                                  final_out_filters, kernel_size=(1, 1),
-                                                  strides=strides, activation=False)
+        x_high_res, x_low_res = oct_conv_bn_relu(x_high_res, x_low_res,
+                                                 final_out_filters, kernel_size=(1, 1),
+                                                 strides=strides, activation=False)
 
     x_high = add([x_high, x_high_res])
     x_low = add([x_low, x_low_res])
@@ -138,19 +82,19 @@ def _octresnet_final_bottleneck_block(ip, filters, alpha=0.5, strides=(1, 1),
 
     x_high_res, x_low_res = ip
 
-    x_high, x_low = _oct_conv_bn_relu(x_high_res, x_low_res, filters, kernel_size=(1, 1),
-                                      alpha=alpha)
+    x_high, x_low = oct_conv_bn_relu(x_high_res, x_low_res, filters, kernel_size=(1, 1),
+                                     alpha=alpha)
 
-    x_high, x_low = _oct_conv_bn_relu(x_high, x_low, filters, kernel_size=(3, 3),
-                                      strides=strides, alpha=alpha)
+    x_high, x_low = oct_conv_bn_relu(x_high, x_low, filters, kernel_size=(3, 3),
+                                     strides=strides, alpha=alpha)
 
     final_filters = int(filters * expansion)
-    x_high = _final_oct_conv_bn_relu(x_high, x_low, final_filters, kernel_size=(1, 1),
-                                     activation=False)
+    x_high = final_oct_conv_bn_relu(x_high, x_low, final_filters, kernel_size=(1, 1),
+                                    activation=False)
 
     if downsample_shortcut:
-        x_high_res = _final_oct_conv_bn_relu(x_high_res, x_low_res, final_filters, kernel_size=(1, 1),
-                                             strides=strides, activation=False)
+        x_high_res = final_oct_conv_bn_relu(x_high_res, x_low_res, final_filters, kernel_size=(1, 1),
+                                            strides=strides, activation=False)
 
     x = add([x_high, x_high_res])
     x = ReLU()(x)
