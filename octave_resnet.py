@@ -65,7 +65,8 @@ def _octresnet_bottleneck_block(ip, filters, alpha=0.5, strides=(1, 1),
     if downsample_shortcut:
         x_high_res, x_low_res = oct_conv_bn_relu(x_high_res, x_low_res,
                                                  final_out_filters, kernel_size=(1, 1),
-                                                 strides=strides, activation=False)
+                                                 strides=strides, alpha=alpha,
+                                                 activation=False)
 
     x_high = add([x_high, x_high_res])
     x_low = add([x_low, x_low_res])
@@ -382,7 +383,7 @@ def OctaveResNet152(include_top=True,
 
 if __name__ == '__main__':
     model = OctaveResNet50(input_shape=(256, 256, 3), classes=1000,
-                           alpha=0.5, expansion=4,
+                           alpha=0.125, expansion=4,
                            initial_filters=64,
                            initial_strides=True)
     model.summary()
